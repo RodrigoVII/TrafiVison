@@ -19,9 +19,12 @@ import pandas as pd
 
 # =================== CONFIGURACIÓN ===================
 
-# Carpeta donde se guardan CSV e imágenes
-CSV_DIR = r"D:\UE\2025-2026\Primer Cuatri\Proyecto Comp I\csv"
-IMG_DIR = r"D:\UE\2025-2026\Primer Cuatri\Proyecto Comp I\imagenesTrafico"
+# Carpeta base del proyecto
+BASE_DIR = r"C:\Users\ditas\OneDrive\Escritorio\UE\2025-26 UE\Primer Cuatri\Proyecto De Computacion I\TrafiVison"
+
+# Subcarpetas para CSV e imágenes
+CSV_DIR = os.path.join(BASE_DIR, "csv")
+IMG_DIR = os.path.join(BASE_DIR, "imagenesTrafico")
 os.makedirs(CSV_DIR, exist_ok=True)
 os.makedirs(IMG_DIR, exist_ok=True)
 
@@ -52,19 +55,24 @@ def guardar_imagen(url, calle):
     ruta_local = os.path.join(IMG_DIR, nombre_archivo)
 
     # Descargar imagen
-    r = requests.get(url, timeout=30)
-    with open(ruta_local, "wb") as f:
-        f.write(r.content)
+    try:
+        r = requests.get(url, timeout=30)
+        r.raise_for_status()
+        with open(ruta_local, "wb") as f:
+            f.write(r.content)
+        return ruta_local, ahora
+    except Exception as e:
+        print(f"[ERR] No se pudo descargar {calle}: {e}")
+        return None, None
 
-    return ruta_local, ahora
 
 def ciclo_captura():
     """Captura imágenes de todas las cámaras."""
     registros = []
 
     for calle, url in CAMARAS.items():
-        try:
-            ruta, momento = guardar_imagen(url, calle)
+        ruta, momento = guardar_imagen(url, calle)
+        if ruta and momento:
             registros.append({
                 "fecha": momento.strftime("%Y-%m-%d"),
                 "hora": momento.strftime("%H:%M"),
@@ -72,8 +80,6 @@ def ciclo_captura():
                 "ruta_imagen": ruta
             })
             print(f"[OK] {calle} -> {ruta}")
-        except Exception as e:
-            print(f"[ERR] {calle}: {e}")
 
     # Guardar CSV
     if registros:
@@ -82,13 +88,17 @@ def ciclo_captura():
             df_prev = pd.read_csv(CSV_PATH)
             df = pd.concat([df_prev, df], ignore_index=True)
         df.to_csv(CSV_PATH, index=False, encoding="utf-8")
+        print(f"\n[CSV actualizado]: {CSV_PATH}")
+    else:
+        print("\n⚠️ No se descargaron imágenes (sin conexión o error de cámara).")
+
 
 def main():
     """Ejecuta una única captura manual."""
     print("\n[READY] ETL cámaras tráfico Madrid (10 cámaras activas)\n")
     ciclo_captura()
-    print(f"\n[CSV guardado]: {CSV_PATH}")
     print(f"[IMG dir]: {IMG_DIR}")
+
 
 if __name__ == "__main__":
     main()
