@@ -1,31 +1,27 @@
 # app/prediccion.py
 """
-Ventana de predicción de tráfico (modelo real).
+Ventana de predicción de tráfico (modelo ML real con Random Forest).
 
+Qué hace:
 - Se abre maximizada
 - Oculta la ventana principal mientras está abierta
-- Permite escoger modelo (Decision Tree / Logistic Regression / KNN)
-- Calcula una predicción y muestra probabilidades (%)
-- Botón "Ver árbol": muestra el árbol dentro de la app (solo si el modelo es Decision Tree)
-- Botón "Volver al inicio": cierra esta ventana y reabre la principal maximizada
+- Permite escoger modelo (Random Forest / Decision Tree / Logistic Regression / KNN)
+- Predice y muestra probabilidades (%)
+- "Ver árbol": muestra el árbol dentro de la app (solo si el modelo es Decision Tree)
+- "Volver al inicio": cierra esta ventana y reabre la principal maximizada
 
-ARREGLOS IMPORTANTES DE ESTA VERSIÓN:
-1) Evita el error: ufunc 'isnan' not supported
-   -> Forzamos tipos numéricos (float) y categóricos (str) según el pipeline REAL.
-2) Evita el error: ['laborab'] not in index
-   -> Si el modelo espera 'laborab', la creamos.
-3) Quitamos el input de "precipitación" (litros_m2) del formulario,
-   pero SI el modelo lo necesita, lo calculamos automáticamente desde "Lluvia".
+Requisito:
+Antes hay que entrenar modelos:
+    python -m app.train_models
+Esto crea /models/*.joblib en la raíz del proyecto.
 """
 
 from pathlib import Path
 import customtkinter as ctk
+import pandas as pd
+import joblib
 from tkinter import messagebox
 
-import joblib
-import pandas as pd
-
-# Para mostrar árbol dentro de la app
 import matplotlib.pyplot as plt
 from sklearn.tree import plot_tree
 
@@ -65,30 +61,47 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
     win.grid_columnconfigure(0, weight=1)
 
     # -----------------------------
-    # Rutas del proyecto
+    # Rutas proyecto
     # -----------------------------
-    project_root = Path(__file__).resolve().parents[1]  # raíz del repo/proyecto
+    project_root = Path(__file__).resolve().parents[1]
     models_dir = project_root / "models"
     csv_path = project_root / "dataset_final_limpio.csv"
 
     # -----------------------------
-    # Modelos (texto UI -> nombre fichero)
+    # Modelos disponibles
     # -----------------------------
     model_options = {
-        "Decision Tree (recomendado)": "decision_tree.joblib",
+        "Random Forest (recomendado)": "random_forest.joblib",
+        "Decision Tree": "decision_tree.joblib",
         "Logistic Regression": "logistic_regression.joblib",
-        "KNN": "knn.joblib"
+        "KNN": "knn.joblib",
     }
 
     # -----------------------------
-    # Cargar CSV base (solo para defaults)
+    # Cargar calles reales desde el CSV (para que no falten y no haya combinaciones inválidas)
     # -----------------------------
-    df_base = None
+    calles = [
+        "Cibeles",
+        "Callao – Gran Vía",
+        "Cuatro Caminos",
+        "Plaza Castilla (Norte)"
+    ]
+    filas = 0
+    columnas = 0
+    archivo_nombre = csv_path.name
+
     if csv_path.exists():
         try:
-            df_base = pd.read_csv(csv_path)
+            df = pd.read_csv(csv_path)
+            filas = len(df)
+            columnas = len(df.columns)
+
+            if "calle" in df.columns:
+                # Quitamos NaNs, duplicados, ordenamos
+                calles = sorted(df["calle"].dropna().astype(str).unique().tolist())
         except Exception:
-            df_base = None
+            # Si el CSV falla, no rompemos la interfaz: usamos fallback
+            pass
 
     # -----------------------------
     # Header
@@ -113,22 +126,16 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
     )
     subtitle.grid(row=1, column=0, sticky="w", pady=(4, 0))
 
-    dataset_info_text = f"Archivo: {csv_path.name} (no encontrado)"
-    if df_base is not None:
-        dataset_info_text = (
-            f"Archivo: {csv_path.name}   |   Filas: {len(df_base)}   |   Columnas: {len(df_base.columns)}"
-        )
-
-    dataset_info = ctk.CTkLabel(
+    info = ctk.CTkLabel(
         header,
-        text=dataset_info_text,
-        text_color="#666666",
+        text=f"Archivo: {archivo_nombre}   |   Filas: {filas}   |   Columnas: {columnas}",
+        text_color="#777777",
         font=("Segoe UI", 12)
     )
-    dataset_info.grid(row=2, column=0, sticky="w", pady=(6, 0))
+    info.grid(row=2, column=0, sticky="w", pady=(10, 0))
 
     sep = ctk.CTkFrame(win, fg_color="#EAEAEA", height=2)
-    sep.grid(row=1, column=0, sticky="ew", padx=24, pady=(0, 12))
+    sep.grid(row=1, column=0, sticky="ew", padx=24, pady=(10, 12))
 
     # -----------------------------
     # Card principal
@@ -148,7 +155,7 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
     content.grid_columnconfigure(1, weight=1)
 
     # -----------------------------
-    # Helper estilo OptionMenu (sin azul)
+    # Helper: estilo OptionMenu (evitar azul y mantener rojo)
     # -----------------------------
     def option_style(menu: ctk.CTkOptionMenu):
         menu.configure(
@@ -161,36 +168,21 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
         )
 
     # -----------------------------
-    # Inputs (MISMO DISEÑO)
+    # Inputs
     # -----------------------------
     ctk.CTkLabel(content, text="Modelo", text_color=TEXT, font=("Segoe UI", 16, "bold")).grid(
         row=0, column=0, sticky="w", pady=(0, 10)
     )
     model_menu = ctk.CTkOptionMenu(content, values=list(model_options.keys()), width=420)
-    model_menu.set("Decision Tree (recomendado)")
+    model_menu.set("Random Forest (recomendado)")
     option_style(model_menu)
     model_menu.grid(row=0, column=1, sticky="w", pady=(0, 10))
 
     ctk.CTkLabel(content, text="Calle", text_color=TEXT, font=("Segoe UI", 16, "bold")).grid(
         row=1, column=0, sticky="w", pady=10
     )
-    calle_menu = ctk.CTkOptionMenu(
-        content,
-        values=[
-            "Calle Princesa – Serrano Jover",
-            "Alonso Martínez",
-            "Cibeles",
-            "Calle Alcalá – Velázquez",
-            "Paseo de la Castellana – Santiago Delgado",
-            "Avenida de América – Francisco Silvela",
-            "Callao – Gran Vía",
-            "Cuatro Caminos",
-            "Paseo del Prado – Huertas",
-            "Plaza Castilla (Norte)"
-        ],
-        width=420
-    )
-    calle_menu.set("Cibeles")
+    calle_menu = ctk.CTkOptionMenu(content, values=calles, width=420)
+    calle_menu.set(calles[0] if len(calles) > 0 else "Cibeles")
     option_style(calle_menu)
     calle_menu.grid(row=1, column=1, sticky="w", pady=10)
 
@@ -248,14 +240,10 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
     )
     prob_label.grid(row=1, column=0, sticky="w", padx=14, pady=(0, 10))
 
-    # ============================================================
-    #  LÓGICA DE PREDICCIÓN (ARREGLO DE TIPOS + COLUMNAS ESPERADAS)
-    # ============================================================
-
+    # -----------------------------
+    # Helpers: cargar modelo / predecir / ver árbol
+    # -----------------------------
     def cargar_modelo_seleccionado():
-        """
-        Carga el pipeline entrenado (joblib) según el modelo escogido.
-        """
         modelo_name = model_menu.get()
         fname = model_options[modelo_name]
         path = models_dir / fname
@@ -266,230 +254,72 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
                 "No se encontró el archivo del modelo:\n"
                 f"{path}\n\n"
                 "Solución:\n"
-                "1) Ejecuta:  python -m app.train_models\n"
-                "2) Debe aparecer la carpeta /models con los .joblib"
+                "1) Ejecuta en terminal:  python -m app.train_models\n"
+                "2) Debe aparecer una carpeta /models con los .joblib\n"
             )
             return None
 
         return joblib.load(path)
 
-    def _safe_float(x, default=0.0) -> float:
-        """
-        Convierte a float de forma robusta.
-        Si llega texto raro o vacío, devuelve default.
-        """
-        try:
-            if x is None:
-                return default
-            s = str(x).strip().replace(",", ".")
-            if s == "":
-                return default
-            return float(s)
-        except Exception:
-            return default
-
-    def _franja_a_hora_num(franja: str) -> int:
-        """
-        Convierte franja horaria a una hora aproximada (0-23),
-        por si el modelo entrenó con columna 'hora'.
-        """
-        mapa = {
-            "Madrugada": 3,
-            "Mañana": 9,
-            "Mediodía": 14,
-            "Tarde": 18,
-            "Noche": 22
-        }
-        return mapa.get(franja, 12)
-
-    def _lluvia_a_litros(lluvia: str) -> float:
-        """
-        Sustituto de "precipitación" (litros_m2) ahora que quitamos el campo.
-        - No llueve   -> 0.0
-        - Lluvia débil -> 0.5
-        - Lluvia intensa -> 2.0
-        """
-        mapa = {
-            "No llueve": 0.0,
-            "Lluvia débil": 0.5,
-            "Lluvia intensa": 2.0
-        }
-        return mapa.get(lluvia, 0.0)
-
-    def _obtener_columnas_prep(pipe):
-        """
-        Saca del ColumnTransformer del pipeline cuáles son columnas numéricas y categóricas.
-        Esto es CLAVE para evitar el error de isnan (tipos mezclados).
-        """
-        num_cols = []
-        cat_cols = []
-
-        try:
-            prep = pipe.named_steps["prep"]
-        except Exception:
-            return num_cols, cat_cols
-
-        try:
-            for name, transformer, cols in prep.transformers_:
-                # Ojo: a veces hay un 'remainder'
-                if name == "num":
-                    num_cols = list(cols)
-                elif name == "cat":
-                    cat_cols = list(cols)
-        except Exception:
-            pass
-
-        return num_cols, cat_cols
-
-    def _crear_input_modelo(pipe) -> pd.DataFrame:
-        """
-        Construye un DataFrame de 1 fila con EXACTAMENTE las columnas que el modelo espera,
-        y con tipos correctos (numéricas como float, categóricas como str).
-        """
-        if df_base is None or len(df_base) == 0:
-            raise FileNotFoundError(
-                "No se ha podido cargar dataset_final_limpio.csv. "
-                "Es necesario para construir el input correctamente."
-            )
-
-        # Columnas esperadas por el modelo (las del entrenamiento)
-        try:
-            expected_cols = list(pipe.feature_names_in_)
-        except Exception:
-            # fallback: columnas del csv
-            expected_cols = list(df_base.columns)
-
-        # Qué columnas son num y cuáles cat según el pipeline
-        num_cols, cat_cols = _obtener_columnas_prep(pipe)
-
-        # Fila base: valores neutros por defecto
-        base_row = df_base.iloc[0]
-
-        # Valores desde la UI
-        calle_val = calle_menu.get()
-        franja_val = franja_menu.get()
-        lluvia_val = lluvia_menu.get()
-        dia_val = dia_menu.get()
-        temp_val = _safe_float(temp_entry.get(), default=20.0)
-
-        # Derivados
-        laborab_val = 1 if dia_val == "Laborable" else 0
-        hora_val = _franja_a_hora_num(franja_val)
-        litros_val = _lluvia_a_litros(lluvia_val)
-
-        data = {}
-        for col in expected_cols:
-            # default desde CSV si existe esa columna
-            default_value = base_row[col] if col in base_row.index else None
-
-            # -----------------------------
-            # MAPEOS IMPORTANTES
-            # -----------------------------
-            if col == "calle":
-                data[col] = str(calle_val)
-
-            elif col == "franja_horaria":
-                data[col] = str(franja_val)
-
-            elif col == "lluvia":
-                data[col] = str(lluvia_val)
-
-            elif col == "laborab":
-                # Algunos entrenamientos usan laborab como 0/1
-                data[col] = float(laborab_val)
-
-            elif col == "laborable":
-                # Otros entrenamientos usan laborable como 0/1
-                data[col] = float(laborab_val)
-
-            elif col == "hora":
-                # Si el modelo espera una hora numérica
-                data[col] = float(hora_val)
-
-            elif col == "temperatura":
-                data[col] = float(temp_val)
-
-            elif col == "litros_m2":
-                # Si el modelo lo espera, lo calculamos desde "Lluvia"
-                data[col] = float(litros_val)
-
-            else:
-                # -----------------------------
-                # RESTO DE COLUMNAS: forzamos tipo según pipeline
-                # -----------------------------
-                if col in num_cols:
-                    data[col] = _safe_float(default_value, default=0.0)
-
-                elif col in cat_cols:
-                    # Para categóricas, siempre string (esto evita isnan con objetos raros)
-                    data[col] = "" if default_value is None else str(default_value)
-
-                else:
-                    # Si no está clasificada, elegimos según dtype del CSV si existe
-                    if col in df_base.columns:
-                        if pd.api.types.is_numeric_dtype(df_base[col]):
-                            data[col] = _safe_float(default_value, default=0.0)
-                        else:
-                            data[col] = "" if default_value is None else str(default_value)
-                    else:
-                        # Último fallback
-                        data[col] = _safe_float(default_value, default=0.0)
-
-        # Construimos el DataFrame final en el orden exacto
-        X_df = pd.DataFrame([data], columns=expected_cols)
-
-        # Extra seguridad: asegura numéricas en columnas que el pipeline diga numéricas
-        for col in num_cols:
-            if col in X_df.columns:
-                X_df[col] = pd.to_numeric(X_df[col], errors="coerce").fillna(0.0)
-
-        # Extra seguridad: categóricas como str
-        for col in cat_cols:
-            if col in X_df.columns:
-                X_df[col] = X_df[col].astype(str)
-
-        return X_df
-
     def predecir():
-        """
-        Ejecuta la predicción del pipeline y actualiza el resultado en pantalla.
-        """
         pipe = cargar_modelo_seleccionado()
         if pipe is None:
             return
 
         try:
-            X_df = _crear_input_modelo(pipe)
-            pred = pipe.predict(X_df)[0]
+            temperatura = float(temp_entry.get().strip().replace(",", "."))
+        except Exception:
+            messagebox.showerror("Error", "Temperatura debe ser un número.")
+            return
 
-            # Probabilidades si el modelo las soporta
-            if hasattr(pipe, "predict_proba"):
-                probs = pipe.predict_proba(X_df)[0]
-                classes = pipe.classes_
-                pairs = list(zip(classes, probs))
-                pairs.sort(key=lambda x: x[1], reverse=True)
-                prob_text = " · ".join([f"{c} {p*100:.0f}%" for c, p in pairs])
-            else:
-                prob_text = "Este modelo no devuelve probabilidades."
+        # IMPORTANTE:
+        # Estas columnas deben coincidir con train_models.py
+        X_input = pd.DataFrame([{
+            "calle": calle_menu.get(),
+            "franja_horaria": franja_menu.get(),
+            "laborable": dia_menu.get(),
+            "lluvia_cat": lluvia_menu.get(),
+            "temperatura": temperatura,
+        }])
 
-            result_label.configure(text=f"El tráfico en {calle_menu.get()} es: {pred}")
-            prob_label.configure(text=f"Probabilidades: {prob_text}")
-
+        try:
+            pred = pipe.predict(X_input)[0]
         except Exception as e:
             messagebox.showerror(
                 "Error al predecir",
                 "Ha ocurrido un error al ejecutar el modelo.\n\n"
                 f"Detalle:\n{e}\n\n"
-                "Recomendación:\n"
-                "1) Ejecuta: python -m app.train_models\n"
-                "2) Vuelve a abrir la app"
+                "Solución recomendada:\n"
+                "1) Borra la carpeta /models\n"
+                "2) Ejecuta: python -m app.train_models\n"
+                "3) Vuelve a abrir la app\n"
             )
+            return
+
+        # Probabilidades
+        prob_text = "Este modelo no devuelve probabilidades."
+        if hasattr(pipe, "predict_proba"):
+            try:
+                probs = pipe.predict_proba(X_input)[0]
+                classes = pipe.classes_
+                pairs = list(zip(classes, probs))
+                pairs.sort(key=lambda x: x[1], reverse=True)
+
+                # Porcentajes redondeados, ajustando visualmente si suma 101 por redondeo
+                perc = [int(round(p * 100)) for _, p in pairs]
+                diff = sum(perc) - 100
+                if diff != 0 and len(perc) > 0:
+                    perc[0] -= diff  # corregimos el primero para que visualmente sume 100
+
+                prob_text = " · ".join([f"{c} {p}%" for (c, _), p in zip(pairs, perc)])
+            except Exception:
+                prob_text = "Probabilidades no disponibles."
+
+        result_label.configure(text=f"El tráfico en {calle_menu.get()} es: {pred}")
+        prob_label.configure(text=f"Probabilidades: {prob_text}")
 
     def ver_arbol():
-        """
-        Muestra el árbol en una ventana interna (solo para Decision Tree).
-        """
-        if model_menu.get() != "Decision Tree (recomendado)":
+        if model_menu.get() != "Decision Tree":
             messagebox.showinfo(
                 "Árbol no disponible",
                 "El árbol solo se puede mostrar si el modelo seleccionado es Decision Tree."
@@ -500,14 +330,14 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
         if pipe is None:
             return
 
-        # Accedemos al árbol interno del pipeline
+        # Acceder al árbol interno del pipeline
         try:
             tree_model = pipe.named_steps["model"]
         except Exception:
             messagebox.showerror("Error", "No se pudo acceder al modelo interno.")
             return
 
-        # Nombres tras OneHot (si se puede)
+        # Feature names tras OneHot (si se puede)
         try:
             prep = pipe.named_steps["prep"]
             feature_names = prep.get_feature_names_out()
@@ -527,8 +357,6 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
 
         top = ctk.CTkFrame(tree_win, fg_color=BG)
         top.grid(row=0, column=0, sticky="ew", padx=24, pady=(18, 10))
-        top.grid_columnconfigure(0, weight=1)
-
         ctk.CTkLabel(
             top,
             text="Árbol de decisión (modelo seleccionado)",
@@ -546,7 +374,6 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
         scroll.grid(row=1, column=0, sticky="nsew", padx=24, pady=(0, 18))
         scroll.grid_columnconfigure(0, weight=1)
 
-        # Render del árbol con matplotlib -> imagen
         import io
         from PIL import Image
 
@@ -608,9 +435,6 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
     btn_arbol.grid(row=0, column=1, sticky="ew", padx=(10, 10))
 
     def volver():
-        """
-        Cierra esta ventana y vuelve a la principal (maximizada).
-        """
         try:
             win.destroy()
         finally:
