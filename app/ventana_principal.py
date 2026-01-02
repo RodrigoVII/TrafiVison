@@ -7,6 +7,8 @@ import customtkinter as ctk
 from app.ver_csv import abrir_visor_csv
 from app.documentacion import abrir_visor_documentacion
 
+from app.prediccion import abrir_ventana_prediccion
+
 try:
     from PIL import Image
     PIL_OK = True
@@ -377,6 +379,7 @@ class VentanaPrincipal(ctk.CTk):
         abrir_visor_csv(self)
 
     def prediccion(self):
+        abrir_ventana_prediccion(self)
         """
         (De momento) placeholder: aquí luego conectaremos tu módulo real de predicción.
         """

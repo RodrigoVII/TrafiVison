@@ -1,1 +1,25 @@
 EnlaceGit.txt
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Modelos entrenados (se regeneran)
+models/
+
+# Logs
+*.log
