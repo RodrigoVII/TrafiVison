@@ -1,32 +1,48 @@
 TrafiVision
 
-TrafiVision es un proyecto académico de análisis y predicción del tráfico urbano en la ciudad de Madrid, desarrollado en el marco de la asignatura Proyecto de Computación I. El sistema combina ingeniería de datos, visión por computador y aprendizaje automático para construir un flujo completo que va desde la recolección de datos hasta la predicción del nivel de tráfico mediante una aplicación gráfica.
+TrafiVision es un proyecto académico de análisis y predicción del tráfico urbano en la ciudad de Madrid. El sistema combina técnicas de ingeniería de datos, visión por computador y aprendizaje automático para construir un flujo completo que va desde la obtención de datos reales hasta su explotación mediante una aplicación gráfica interactiva.
 
-El objetivo principal del proyecto es diseñar e implementar un proceso ETL (Extracción, Transformación y Carga) automatizado que permita integrar información visual procedente de cámaras públicas con datos meteorológicos, generando un dataset estructurado y preparado para análisis y modelado predictivo.
+El proyecto ha sido desarrollado en el contexto de la asignatura Proyecto de Computación I, con un enfoque práctico y orientado a datos reales.
 
-Descripción del proyecto
+Objetivo del proyecto
 
-El sistema recopila imágenes en tiempo real desde cámaras de tráfico del Ayuntamiento de Madrid y las combina con datos meteorológicos obtenidos a través de la API Open-Meteo. A partir de las imágenes capturadas, se aplica un modelo de visión por computador basado en YOLOv8 para detectar vehículos y estimar el nivel de tráfico.
+El objetivo principal de TrafiVision es diseñar e implementar un pipeline ETL automatizado capaz de:
 
-Toda la información se unifica en un conjunto de datos final en formato CSV, que incluye variables temporales, climáticas y contextuales. Este dataset sirve como base para el análisis exploratorio y para el entrenamiento de modelos de aprendizaje automático orientados a la predicción del tráfico.
+Recopilar imágenes de tráfico desde cámaras públicas.
 
-Además, el proyecto incorpora una aplicación gráfica desarrollada en Python que permite visualizar el dataset, consultar la documentación y realizar predicciones de forma interactiva.
+Integrar información meteorológica en tiempo real.
 
-Arquitectura y flujo de trabajo
+Procesar y limpiar los datos obtenidos.
 
-El proyecto sigue un enfoque ETL completamente automatizado:
+Generar un dataset estructurado y reutilizable.
 
-Extracción de imágenes de tráfico desde cámaras públicas.
+Entrenar modelos predictivos para estimar el nivel de tráfico.
+
+Ofrecer una interfaz gráfica para la consulta y predicción.
+
+Descripción general
+
+El sistema obtiene imágenes desde cámaras de tráfico del Ayuntamiento de Madrid y las combina con datos meteorológicos procedentes de la API Open-Meteo. Sobre las imágenes capturadas se aplica un modelo de visión por computador basado en YOLOv8, encargado de detectar vehículos y estimar la densidad del tráfico.
+
+Toda la información generada se integra en un dataset final en formato CSV que incluye variables temporales, meteorológicas y contextuales. Este conjunto de datos sirve como base tanto para el análisis exploratorio como para el entrenamiento de modelos de aprendizaje automático.
+
+El proyecto se completa con una aplicación gráfica en Python, desde la cual es posible visualizar los datos y realizar predicciones de forma interactiva.
+
+Flujo de trabajo (ETL)
+
+El funcionamiento del sistema sigue una arquitectura ETL claramente definida:
+
+Extracción de imágenes desde cámaras de tráfico públicas.
 
 Extracción de datos meteorológicos en tiempo real.
 
-Transformación y limpieza de datos, incluyendo normalización temporal y generación de variables derivadas.
+Limpieza y transformación de los datos (normalización temporal y variables derivadas).
 
-Detección de vehículos mediante YOLOv8 y clasificación del nivel de tráfico.
+Detección de vehículos mediante YOLOv8.
 
-Integración de todas las fuentes en un dataset final estructurado.
+Integración de todas las fuentes en un dataset final.
 
-Entrenamiento de modelos predictivos y uso desde la interfaz gráfica.
+Entrenamiento y uso de modelos predictivos.
 
 Estructura del repositorio
 TrafiVision/
@@ -58,31 +74,29 @@ Cámaras de tráfico del Ayuntamiento de Madrid.
 
 Datos meteorológicos obtenidos mediante la API Open-Meteo.
 
-Etiquetas de tráfico generadas automáticamente mediante YOLOv8.
+Resultados de detección de vehículos generados por YOLOv8.
 
-Cada registro incluye, entre otras, las siguientes variables:
+Cada registro contiene variables como:
 
-Fecha y hora.
+Fecha y hora de captura.
 
-Ubicación de la cámara (calle).
-
-Temperatura.
-
-Condiciones de lluvia.
+Ubicación de la cámara.
 
 Franja horaria.
 
 Tipo de día (laborable o no laborable).
 
+Temperatura y condiciones de lluvia.
+
 Número de vehículos detectados.
 
 Nivel de tráfico estimado (Bajo, Medio o Elevado).
 
-El dataset contiene aproximadamente 2.950 registros y 12 variables.
+El dataset final cuenta con aproximadamente 2.950 registros y 12 variables.
 
 Modelado predictivo
 
-A partir del dataset final se han entrenado distintos modelos de clasificación supervisada, entre ellos:
+A partir del dataset generado se han entrenado distintos modelos de clasificación supervisada, entre ellos:
 
 Árboles de decisión
 
@@ -94,23 +108,23 @@ Random Forest
 
 Naive Bayes
 
-Los mejores resultados se obtuvieron con modelos basados en árboles, alcanzando una precisión aproximada del 72–73%. Estos resultados están condicionados por el tamaño actual del dataset y por la limitada diversidad temporal y meteorológica de los datos disponibles.
+Los mejores resultados se obtuvieron con modelos basados en árboles, alcanzando una precisión aproximada del 72–73%. Estos resultados están condicionados por el tamaño del dataset y por la limitada variabilidad temporal y meteorológica de los datos.
 
 Aplicación gráfica
 
-La aplicación gráfica desarrollada en Python permite:
+El proyecto incluye una aplicación gráfica desarrollada en Python que permite:
 
 Visualizar el dataset completo en formato tabla.
 
-Consultar la documentación del proyecto desde la propia aplicación.
+Consultar la documentación del proyecto desde la propia interfaz.
 
-Realizar predicciones seleccionando condiciones de tráfico reales.
+Realizar predicciones seleccionando distintas condiciones de tráfico.
 
-Mostrar las probabilidades de cada nivel de tráfico.
+Mostrar probabilidades asociadas a cada nivel de tráfico.
 
 Visualizar el árbol de decisión cuando se utiliza este modelo.
 
-Todas las ventanas se abren maximizadas y mantienen una estética coherente en tonos rojo, blanco y negro.
+La interfaz mantiene una estética coherente en tonos rojo, blanco y negro, y todas las ventanas se abren maximizadas para mejorar la experiencia de uso.
 
 Ejecución del proyecto
 
@@ -136,11 +150,11 @@ Ejecutar la aplicación gráfica:
 
 python -m app.main
 
-Estado del proyecto
+Estado actual
 
-Pipeline ETL implementado y funcional.
+Pipeline ETL completamente funcional.
 
-Dataset final limpio, coherente y documentado.
+Dataset final limpio y estructurado.
 
 Modelos predictivos entrenados y evaluados.
 
@@ -148,17 +162,21 @@ Aplicación gráfica integrada y operativa.
 
 Trabajo futuro
 
-Como posibles ampliaciones del proyecto se contempla el aumento del tamaño del dataset, la automatización del reentrenamiento de los modelos, la incorporación de métricas adicionales y la mejora de las visualizaciones gráficas.
+Como posibles mejoras futuras se plantea:
+
+Ampliar el conjunto de datos.
+
+Automatizar el reentrenamiento de los modelos.
+
+Incorporar nuevas métricas y visualizaciones.
+
+Extender la aplicación con nuevas funcionalidades.
 
 Tecnologías utilizadas
 
 Python 3
 
-Pandas
-
-NumPy
-
-Requests
+Pandas y NumPy
 
 OpenCV
 
