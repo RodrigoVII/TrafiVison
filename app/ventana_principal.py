@@ -75,8 +75,8 @@ class VentanaPrincipal(ctk.CTk):
         # Semáforo opcional
         self.semaforo_path = self.app_dir / "semaforo.png"
 
-        # PDF documentación (ahora el 80%, luego lo cambias a la completa)
-        self.doc_pdf = self.project_root / "MemoriaTrafiVision 80%.docx.pdf"
+        # PDF documentación 
+        self.doc_pdf = self.project_root / "MemoriaTrafiVision 100%.docx.pdf"
 
         # Estado responsive
         self._resize_job = None
