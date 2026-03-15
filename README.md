@@ -1,104 +1,146 @@
 TrafiVision
 
-TrafiVision es un proyecto académico de análisis y predicción del tráfico urbano en la ciudad de Madrid. El sistema combina técnicas de ingeniería de datos, visión por computador y aprendizaje automático para construir un flujo completo que va desde la obtención de datos reales hasta su explotación mediante una aplicación gráfica interactiva.
+TrafiVision es un proyecto académico orientado al análisis y predicción del tráfico urbano en la ciudad de Madrid. El sistema combina técnicas de ingeniería de datos, visión por computador y aprendizaje automático para construir un flujo completo que va desde la obtención de datos reales hasta su explotación mediante una aplicación interactiva.
 
-El proyecto ha sido desarrollado en el contexto de la asignatura Proyecto de Computación I, con un enfoque práctico y orientado a datos reales.
+El proyecto ha sido desarrollado en el contexto de las asignaturas Proyecto de Computación I y Proyecto de Computación II, siguiendo una evolución progresiva desde un prototipo experimental basado en scripts hasta una arquitectura más estructurada preparada para futuras ampliaciones.
 
 Objetivo del proyecto
 
-El objetivo principal de TrafiVision es diseñar e implementar un pipeline ETL automatizado capaz de:
+El objetivo principal de TrafiVision es diseñar e implementar un sistema capaz de analizar datos reales de tráfico urbano y generar predicciones utilizando técnicas de machine learning.
 
-Recopilar imágenes de tráfico desde cámaras públicas.
+Para ello se ha desarrollado un pipeline completo que permite:
 
-Integrar información meteorológica en tiempo real.
+Recopilar imágenes de tráfico desde cámaras públicas del Ayuntamiento de Madrid.
+
+Integrar información meteorológica en tiempo real mediante la API Open-Meteo.
 
 Procesar y limpiar los datos obtenidos.
+
+Detectar vehículos en las imágenes mediante visión artificial.
 
 Generar un dataset estructurado y reutilizable.
 
 Entrenar modelos predictivos para estimar el nivel de tráfico.
 
-Ofrecer una interfaz gráfica para la consulta y predicción.
+Ofrecer una interfaz que permita consultar datos y realizar predicciones.
 
-Descripción general
+Evolución del proyecto
 
-El sistema obtiene imágenes desde cámaras de tráfico del Ayuntamiento de Madrid y las combina con datos meteorológicos procedentes de la API Open-Meteo. Sobre las imágenes capturadas se aplica un modelo de visión por computador basado en YOLOv8, encargado de detectar vehículos y estimar la densidad del tráfico.
+El desarrollo del proyecto se ha realizado en dos etapas principales.
 
-Toda la información generada se integra en un dataset final en formato CSV que incluye variables temporales, meteorológicas y contextuales. Este conjunto de datos sirve como base tanto para el análisis exploratorio como para el entrenamiento de modelos de aprendizaje automático.
+Fase 1 – Ingeniería de datos y modelado (PCDI)
 
-El proyecto se completa con una aplicación gráfica en Python, desde la cual es posible visualizar los datos y realizar predicciones de forma interactiva.
+En la primera fase se desarrolló un sistema centrado en la obtención y procesamiento de datos.
 
-Flujo de trabajo (ETL)
+Durante esta etapa se implementó:
 
-El funcionamiento del sistema sigue una arquitectura ETL claramente definida:
+Un pipeline ETL para recopilar datos de tráfico y meteorología.
 
-Extracción de imágenes desde cámaras de tráfico públicas.
+Un sistema de detección de vehículos mediante YOLOv8.
 
-Extracción de datos meteorológicos en tiempo real.
+La generación de un dataset final en formato CSV.
 
-Limpieza y transformación de los datos (normalización temporal y variables derivadas).
+El entrenamiento de varios modelos de machine learning.
 
-Detección de vehículos mediante YOLOv8.
+Una aplicación gráfica desarrollada en Python para interactuar con el sistema.
 
-Integración de todas las fuentes en un dataset final.
+Fase 2 – Evolución arquitectónica del sistema (PCII)
 
-Entrenamiento y uso de modelos predictivos.
+En la fase actual el proyecto evoluciona hacia una arquitectura más estructurada.
 
-Estructura del repositorio
-TrafiVision/
-├── app/
-│   ├── main.py
-│   ├── ventana_principal.py
-│   ├── ver_csv.py
-│   ├── documentacion.py
-│   ├── prediccion.py
-│   ├── train_models.py
-│   └── logo.png
-│
-├── dataset_final_limpio.csv
-├── dataset_final(A).csv
-├── etl_camaras_madrid.py
-├── etl_tiempo.py
-├── limpiar_hora_dataset.py
-├── yolo_final.py
-│
-├── MemoriaTrafiVision 80%.pdf
-├── README.md
-└── requirements.txt
+Las principales mejoras incorporadas son:
 
-Dataset
+Migración del almacenamiento de datos desde archivos CSV a una base de datos relacional (MariaDB).
 
-El archivo dataset_final_limpio.csv integra información procedente de tres fuentes principales:
+Diseño de una estructura de base de datos con tablas relacionadas:
 
-Cámaras de tráfico del Ayuntamiento de Madrid.
+camara
 
-Datos meteorológicos obtenidos mediante la API Open-Meteo.
+captura
 
-Resultados de detección de vehículos generados por YOLOv8.
+meteo
 
-Cada registro contiene variables como:
+deteccion
 
-Fecha y hora de captura.
+trafico
 
-Ubicación de la cámara.
+Desarrollo de un módulo de acceso a datos (db_client.py).
 
-Franja horaria.
+Creación de una API inicial en Python para exponer funcionalidades del sistema.
 
-Tipo de día (laborable o no laborable).
+Reorganización del proyecto siguiendo una arquitectura más modular.
 
-Temperatura y condiciones de lluvia.
+Esta evolución permite preparar el sistema para futuras mejoras como una aplicación web completa o despliegue en entornos más cercanos a producción.
 
-Número de vehículos detectados.
+Flujo de trabajo del sistema
 
-Nivel de tráfico estimado (Bajo, Medio o Elevado).
+El funcionamiento de TrafiVision se basa en un pipeline de procesamiento de datos dividido en varias etapas.
 
-El dataset final cuenta con aproximadamente 2.950 registros y 12 variables.
+Extracción de datos
+
+Captura de imágenes desde cámaras públicas de tráfico.
+
+Obtención de datos meteorológicos mediante la API Open-Meteo.
+
+Transformación
+
+Limpieza y normalización de los datos.
+
+Generación de variables temporales y contextuales.
+
+Integración de datos procedentes de distintas fuentes.
+
+Análisis visual
+
+Detección de vehículos en imágenes mediante YOLOv8.
+
+Integración
+
+Generación de un dataset estructurado.
+
+Almacenamiento de la información en base de datos.
 
 Modelado predictivo
 
-A partir del dataset generado se han entrenado distintos modelos de clasificación supervisada, entre ellos:
+Entrenamiento de modelos de clasificación supervisada.
 
-Árboles de decisión
+Predicción del nivel de tráfico urbano.
+
+Dataset
+
+El dataset generado integra información procedente de tres fuentes principales:
+
+Cámaras de tráfico del Ayuntamiento de Madrid
+
+Datos meteorológicos obtenidos mediante la API Open-Meteo
+
+Resultados de detección de vehículos generados por YOLOv8
+
+Cada registro contiene variables como:
+
+Fecha y hora de captura
+
+Ubicación de la cámara
+
+Franja horaria
+
+Tipo de día (laborable o no laborable)
+
+Temperatura
+
+Condiciones meteorológicas
+
+Número de vehículos detectados
+
+Nivel de tráfico estimado
+
+El dataset utilizado actualmente contiene aproximadamente 2900 registros y diversas variables temporales, meteorológicas y contextuales.
+
+Modelado predictivo
+
+A partir del dataset generado se han entrenado distintos modelos de clasificación supervisada:
+
+Decision Tree
 
 Logistic Regression
 
@@ -108,30 +150,63 @@ Random Forest
 
 Naive Bayes
 
-Los mejores resultados se obtuvieron con modelos basados en árboles, alcanzando una precisión aproximada del 72–73%. Estos resultados están condicionados por el tamaño del dataset y por la limitada variabilidad temporal y meteorológica de los datos.
+Los modelos basados en árboles han mostrado los mejores resultados, alcanzando precisiones cercanas al 72-73% en las pruebas realizadas.
 
-Aplicación gráfica
+Aplicación
 
-El proyecto incluye una aplicación gráfica desarrollada en Python que permite:
+El proyecto incluye una aplicación desarrollada en Python que permite interactuar con el sistema.
 
-Visualizar el dataset completo en formato tabla.
+Entre sus funcionalidades se incluyen:
 
-Consultar la documentación del proyecto desde la propia interfaz.
+Exploración de los registros almacenados en la base de datos.
 
-Realizar predicciones seleccionando distintas condiciones de tráfico.
+Visualización de estadísticas generales del sistema.
 
-Mostrar probabilidades asociadas a cada nivel de tráfico.
+Consulta de información histórica.
 
-Visualizar el árbol de decisión cuando se utiliza este modelo.
+Predicción del nivel de tráfico a partir de distintos parámetros.
 
-La interfaz mantiene una estética coherente en tonos rojo, blanco y negro, y todas las ventanas se abren maximizadas para mejorar la experiencia de uso.
+Visualización del árbol de decisión cuando se utiliza este modelo.
 
+La aplicación ha sido desarrollada utilizando CustomTkinter, lo que permite crear una interfaz moderna y fácil de utilizar.
+
+Estructura del repositorio
+TrafiVision
+│
+├── app/
+│   ├── main.py
+│   ├── ventana_principal.py
+│   ├── ver_csv.py
+│   ├── prediccion.py
+│   ├── train_models.py
+│   └── documentacion.py
+│
+├── api/
+│   └── api.py
+│
+├── db/
+│   ├── db_client.py
+│   └── test_connection.py
+│
+├── models/
+│
+├── dataset_final(A).csv
+├── dataset_final_limpio.csv
+│
+├── etl_camaras_madrid.py
+├── etl_tiempo.py
+├── limpiar_hora_dataset.py
+├── merge_datasets_final.py
+├── yolo_final.py
+│
+├── DocumentacionF1_PcII.pdf
+├── README.md
+└── requirements.txt
 Ejecución del proyecto
 
 Instalar dependencias:
 
 pip install -r requirements.txt
-
 
 Ejecutar el pipeline ETL:
 
@@ -140,66 +215,63 @@ python etl_tiempo.py
 python yolo_final.py
 python limpiar_hora_dataset.py
 
-
-Entrenar los modelos predictivos:
+Entrenar los modelos:
 
 python -m app.train_models
 
-
-Ejecutar la aplicación gráfica:
+Ejecutar la aplicación:
 
 python -m app.main
-
-Estado actual
-
-Pipeline ETL completamente funcional.
-
-Dataset final limpio y estructurado.
-
-Modelos predictivos entrenados y evaluados.
-
-Aplicación gráfica integrada y operativa.
-
-Trabajo futuro
-
-Como posibles mejoras futuras se plantea:
-
-Ampliar el conjunto de datos.
-
-Automatizar el reentrenamiento de los modelos.
-
-Incorporar nuevas métricas y visualizaciones.
-
-Extender la aplicación con nuevas funcionalidades.
-
 Tecnologías utilizadas
 
 Python 3
 
-Pandas y NumPy
+Pandas
+
+NumPy
 
 OpenCV
 
 Ultralytics YOLOv8
 
-Torch y Torchvision
+PyTorch
 
 Scikit-learn
+
+MariaDB / MySQL
 
 CustomTkinter
 
 Matplotlib
 
-requirements.txt
-pandas
-numpy
-requests
-opencv-python
-ultralytics
-torch
-torchvision
-scikit-learn
-joblib
-matplotlib
-customtkinter
-Pillow
+Joblib
+
+Estado actual del proyecto
+
+Actualmente el sistema permite:
+
+Ejecutar un pipeline ETL completo
+
+Generar datasets estructurados
+
+Detectar vehículos mediante visión artificial
+
+Entrenar modelos predictivos
+
+Almacenar datos en base de datos relacional
+
+Consultar información mediante aplicación interactiva
+
+Trabajo futuro
+
+Entre las mejoras previstas para próximas fases se incluyen:
+
+Desarrollo de una aplicación web completa.
+
+Implementación de un sistema de autenticación y gestión de usuarios.
+
+Automatización del reentrenamiento de modelos.
+
+Integración de nuevas fuentes de datos.
+
+Despliegue del sistema en un entorno accesible desde navegador.
