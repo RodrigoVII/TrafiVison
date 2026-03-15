@@ -2,8 +2,13 @@
 """
 Entrenamiento de modelos para TrafiVision (con guardado en /models).
 
+NOVEDAD PCII:
+- Ya no carga dataset_final_limpio.csv
+- Ahora obtiene los datos desde la BASE DE DATOS MariaDB
+- Usa db/db_client.py como capa de acceso a datos
+
 Qué hace:
-- Carga el CSV final limpio desde la raíz del proyecto: dataset_final_limpio.csv
+- Carga los datos desde MariaDB
 - Normaliza columnas clave para que el entrenamiento y la app usen los mismos nombres
 - Crea (si hace falta) la columna 'lluvia_cat'
 - Entrena y guarda varios modelos:
@@ -34,9 +39,14 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 
+from db.db_client import get_training_dataframe
+
 
 def _find_first_existing_column(df: pd.DataFrame, candidates):
-    """Devuelve el primer nombre de columna que exista en df, o None si no existe ninguno."""
+    """
+    Devuelve el primer nombre de columna que exista en df,
+    o None si no existe ninguno.
+    """
     for c in candidates:
         if c in df.columns:
             return c
@@ -47,78 +57,124 @@ def _build_lluvia_cat(df: pd.DataFrame) -> pd.DataFrame:
     """
     Garantiza que existe df['lluvia_cat'].
 
-    Casos típicos que cubre:
+    Casos que cubre:
     - Si ya existe lluvia_cat: no hace nada.
-    - Si existe lluvia (valores como "No", "Sí", "No llueve", "Lluvia débil"...): lo convierte a categorías coherentes.
-    - Si existe litros_m2: deriva lluvia_cat por umbrales.
-    - Si no hay nada: crea "No llueve" por defecto.
+    - Si existe lluvia (numérica o categórica): la transforma a categorías coherentes.
+    - Si no hay nada: crea 'No llueve' por defecto.
     """
     if "lluvia_cat" in df.columns:
         return df
 
-    # 1) Si hay columna 'lluvia'
     if "lluvia" in df.columns:
+        # Intentamos convertir a numérico
+        lluvia_num = pd.to_numeric(df["lluvia"], errors="coerce")
+
+        if not lluvia_num.isna().all():
+            def map_lluvia_num(v):
+                if pd.isna(v) or v <= 0:
+                    return "No llueve"
+                if v <= 1.5:
+                    return "Lluvia débil"
+                return "Lluvia intensa"
+
+            df["lluvia_cat"] = lluvia_num.apply(map_lluvia_num)
+            return df
+
+        # Si no era numérica, tratamos como texto
         s = df["lluvia"].astype(str).str.strip().str.lower()
 
-        # Normalización simple y robusta
-        def map_lluvia(x: str) -> str:
-            if x in ["no", "0", "false", "nan", "none"] or "no" == x or "no llueve" in x:
+        def map_lluvia_text(x: str) -> str:
+            if x in ["no", "0", "false", "nan", "none", "no llueve"]:
                 return "No llueve"
-            # Si ya viene con palabras tipo "débil/intensa"
             if "debil" in x or "débil" in x:
                 return "Lluvia débil"
             if "intens" in x or "fuerte" in x:
                 return "Lluvia intensa"
-            # Si viene "si", "sí", "1", etc. asumimos débil
             if x in ["si", "sí", "1", "true"] or "llueve" in x:
                 return "Lluvia débil"
-            # fallback
             return "No llueve"
 
-        df["lluvia_cat"] = s.apply(map_lluvia)
+        df["lluvia_cat"] = s.apply(map_lluvia_text)
         return df
 
-    # 2) Si no hay lluvia, pero hay litros_m2
-    if "litros_m2" in df.columns:
-        # Convertimos a numérico de forma segura
-        litros = pd.to_numeric(df["litros_m2"], errors="coerce").fillna(0.0)
-
-        def map_litros(v: float) -> str:
-            if v <= 0:
-                return "No llueve"
-            if v <= 1.5:
-                return "Lluvia débil"
-            return "Lluvia intensa"
-
-        df["lluvia_cat"] = litros.apply(map_litros)
-        return df
-
-    # 3) Si no hay nada, por defecto
     df["lluvia_cat"] = "No llueve"
+    return df
+
+
+def _normalizar_laborable(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Convierte la columna laborable a los textos que usa la interfaz:
+    - 1 -> Laborable
+    - 0 -> No laborable
+    """
+    if "laborable" not in df.columns:
+        return df
+
+    def map_laborable(v):
+        if pd.isna(v):
+            return "No laborable"
+        if isinstance(v, str):
+            v_clean = v.strip().lower()
+            if v_clean in ["laborable", "1", "true", "sí", "si", "yes"]:
+                return "Laborable"
+            return "No laborable"
+        try:
+            return "Laborable" if int(v) == 1 else "No laborable"
+        except Exception:
+            return "No laborable"
+
+    df["laborable"] = df["laborable"].apply(map_laborable)
+    return df
+
+
+def _limpiar_nombre_calle(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Limpia el nombre de la calle para que coincida con lo que usa la app.
+    Ejemplo:
+        'Madrid - Alcalá - Velázquez' -> 'Alcalá - Velázquez'
+    """
+    if "calle" not in df.columns:
+        return df
+
+    def clean_name(name):
+        if pd.isna(name):
+            return name
+        name = str(name).strip()
+        if name.startswith("Madrid - "):
+            name = name.replace("Madrid - ", "", 1)
+        return name
+
+    df["calle"] = df["calle"].apply(clean_name)
     return df
 
 
 def main():
     # -----------------------------
-    # Rutas
+    # Ruta de salida modelos
     # -----------------------------
-    root = Path(__file__).resolve().parents[1]          # .../TrafiVison
-    csv_path = root / "dataset_final_limpio.csv"
+    root = Path(__file__).resolve().parents[1]   # .../TrafiVison
     models_dir = root / "models"
     models_dir.mkdir(exist_ok=True)
 
-    if not csv_path.exists():
-        raise FileNotFoundError(f"No se encuentra el CSV en: {csv_path}")
+    # -----------------------------
+    # Cargar datos desde la base de datos
+    # -----------------------------
+    print("Cargando datos desde MariaDB...")
+    df = get_training_dataframe()
+
+    if df.empty:
+        raise ValueError("No se han encontrado datos en la base de datos para entrenar.")
 
     # -----------------------------
-    # Cargar datos
+    # Normalizaciones necesarias
     # -----------------------------
-    df = pd.read_csv(csv_path)
+    df = _limpiar_nombre_calle(df)
+    df = _normalizar_laborable(df)
+    df = _build_lluvia_cat(df)
 
     # -----------------------------
-    # Detectar columna objetivo (target)
+    # Detectar columna objetivo
     # -----------------------------
-    # Ajusta aquí si tu target se llama diferente
     target_col = _find_first_existing_column(df, ["trafico", "nivel_trafico", "nivel", "label"])
     if target_col is None:
         raise KeyError(
@@ -128,12 +184,7 @@ def main():
         )
 
     # -----------------------------
-    # Asegurar lluvia_cat
-    # -----------------------------
-    df = _build_lluvia_cat(df)
-
-    # -----------------------------
-    # Comprobar que existen columnas clave (features)
+    # Comprobar columnas necesarias
     # -----------------------------
     required = ["calle", "franja_horaria", "laborable", "temperatura", "lluvia_cat"]
     missing = [c for c in required if c not in df.columns]
@@ -151,9 +202,14 @@ def main():
     y = df[target_col].copy()
 
     # -----------------------------
+    # Limpiar posibles nulos en target
+    # -----------------------------
+    valid_mask = ~y.isna()
+    X = X.loc[valid_mask].copy()
+    y = y.loc[valid_mask].copy()
+
+    # -----------------------------
     # Preprocesado
-    # - categóricas: OneHotEncoder(handle_unknown="ignore") para permitir combinaciones nuevas
-    # - numéricas: imputación + escalado (para KNN y LogisticRegression viene bien)
     # -----------------------------
     cat_features = ["calle", "franja_horaria", "laborable", "lluvia_cat"]
     num_features = ["temperatura"]
@@ -202,6 +258,7 @@ def main():
     # -----------------------------
     # Entrenar y guardar
     # -----------------------------
+    print(f"Entrenando con {len(X)} registros...")
     for filename, model in models.items():
         pipe = Pipeline(steps=[
             ("prep", preprocessor),

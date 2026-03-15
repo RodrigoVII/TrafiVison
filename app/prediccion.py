@@ -1,6 +1,6 @@
 # app/prediccion.py
 """
-Ventana de predicción de tráfico (modelo ML real con Random Forest).
+Ventana de predicción de tráfico (modelo ML real).
 
 Qué hace:
 - Se abre maximizada
@@ -10,10 +10,9 @@ Qué hace:
 - "Ver árbol": muestra el árbol dentro de la app (solo si el modelo es Decision Tree)
 - "Volver al inicio": cierra esta ventana y reabre la principal maximizada
 
-Requisito:
-Antes hay que entrenar modelos:
-    python -m app.train_models
-Esto crea /models/*.joblib en la raíz del proyecto.
+NOVEDAD PCII:
+- Ya no lee el CSV
+- Obtiene las calles y estadísticas desde la BASE DE DATOS MariaDB
 """
 
 from pathlib import Path
@@ -24,6 +23,8 @@ from tkinter import messagebox
 
 import matplotlib.pyplot as plt
 from sklearn.tree import plot_tree
+
+from db.db_client import get_capturas_dataframe
 
 
 def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
@@ -65,7 +66,6 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
     # -----------------------------
     project_root = Path(__file__).resolve().parents[1]
     models_dir = project_root / "models"
-    csv_path = project_root / "dataset_final_limpio.csv"
 
     # -----------------------------
     # Modelos disponibles
@@ -78,30 +78,57 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
     }
 
     # -----------------------------
-    # Cargar calles reales desde el CSV (para que no falten y no haya combinaciones inválidas)
+    # Cargar datos desde la base de datos
     # -----------------------------
     calles = [
-        "Cibeles",
-        "Callao – Gran Vía",
+        "Cibeles 1",
+        "Callao / Gran Vía",
         "Cuatro Caminos",
-        "Plaza Castilla (Norte)"
+        "Plaza de Castilla"
     ]
     filas = 0
     columnas = 0
-    archivo_nombre = csv_path.name
+    origen_texto = "Origen: Base de datos MariaDB"
 
-    if csv_path.exists():
-        try:
-            df = pd.read_csv(csv_path)
-            filas = len(df)
-            columnas = len(df.columns)
+    def limpiar_nombre_calle(nombre):
+        """
+        Limpia el nombre de calle para mostrarlo de forma más amigable.
+        Por ejemplo:
+            'Madrid - Alcalá - Velázquez' -> 'Alcalá - Velázquez'
+        """
+        if pd.isna(nombre):
+            return ""
 
-            if "calle" in df.columns:
-                # Quitamos NaNs, duplicados, ordenamos
-                calles = sorted(df["calle"].dropna().astype(str).unique().tolist())
-        except Exception:
-            # Si el CSV falla, no rompemos la interfaz: usamos fallback
-            pass
+        nombre = str(nombre).strip()
+
+        if nombre.startswith("Madrid - "):
+            nombre = nombre.replace("Madrid - ", "", 1)
+
+        return nombre
+
+    try:
+        df = get_capturas_dataframe()
+        filas = len(df)
+        columnas = len(df.columns)
+
+        if "calle" in df.columns:
+            calles_db = (
+                df["calle"]
+                .dropna()
+                .astype(str)
+                .apply(limpiar_nombre_calle)
+                .unique()
+                .tolist()
+            )
+
+            calles_db = sorted(calles_db)
+
+            if len(calles_db) > 0:
+                calles = calles_db
+
+    except Exception as e:
+        # Si falla la BD, no rompemos la interfaz
+        origen_texto = f"Origen: Base de datos no disponible ({e})"
 
     # -----------------------------
     # Header
@@ -128,7 +155,7 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
 
     info = ctk.CTkLabel(
         header,
-        text=f"Archivo: {archivo_nombre}   |   Filas: {filas}   |   Columnas: {columnas}",
+        text=f"{origen_texto}   |   Filas: {filas}   |   Columnas: {columnas}",
         text_color="#777777",
         font=("Segoe UI", 12)
     )
@@ -155,7 +182,7 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
     content.grid_columnconfigure(1, weight=1)
 
     # -----------------------------
-    # Helper: estilo OptionMenu (evitar azul y mantener rojo)
+    # Helper: estilo OptionMenu
     # -----------------------------
     def option_style(menu: ctk.CTkOptionMenu):
         menu.configure(
@@ -182,14 +209,18 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
         row=1, column=0, sticky="w", pady=10
     )
     calle_menu = ctk.CTkOptionMenu(content, values=calles, width=420)
-    calle_menu.set(calles[0] if len(calles) > 0 else "Cibeles")
+    calle_menu.set(calles[0] if len(calles) > 0 else "Cibeles 1")
     option_style(calle_menu)
     calle_menu.grid(row=1, column=1, sticky="w", pady=10)
 
     ctk.CTkLabel(content, text="Franja horaria", text_color=TEXT, font=("Segoe UI", 16, "bold")).grid(
         row=2, column=0, sticky="w", pady=10
     )
-    franja_menu = ctk.CTkOptionMenu(content, values=["Madrugada", "Mañana", "Mediodía", "Tarde", "Noche"], width=420)
+    franja_menu = ctk.CTkOptionMenu(
+        content,
+        values=["Madrugada", "Mañana", "Mediodía", "Tarde", "Noche"],
+        width=420
+    )
     franja_menu.set("Tarde")
     option_style(franja_menu)
     franja_menu.grid(row=2, column=1, sticky="w", pady=10)
@@ -254,12 +285,25 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
                 "No se encontró el archivo del modelo:\n"
                 f"{path}\n\n"
                 "Solución:\n"
-                "1) Ejecuta en terminal:  python -m app.train_models\n"
+                "1) Ejecuta en terminal: python -m app.train_models\n"
                 "2) Debe aparecer una carpeta /models con los .joblib\n"
             )
             return None
 
-        return joblib.load(path)
+        try:
+            return joblib.load(path)
+        except Exception as e:
+            messagebox.showerror(
+                "Error al cargar el modelo",
+                "No se pudo cargar el archivo del modelo.\n\n"
+                f"Detalle:\n{e}\n\n"
+                "Esto suele pasar cuando el modelo se entrenó con otra versión de scikit-learn.\n\n"
+                "Solución recomendada:\n"
+                "1) Borra la carpeta /models\n"
+                "2) Ejecuta: python -m app.train_models\n"
+                "3) Vuelve a abrir la app"
+            )
+            return None
 
     def predecir():
         pipe = cargar_modelo_seleccionado()
@@ -290,9 +334,9 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
                 "Ha ocurrido un error al ejecutar el modelo.\n\n"
                 f"Detalle:\n{e}\n\n"
                 "Solución recomendada:\n"
-                "1) Borra la carpeta /models\n"
-                "2) Ejecuta: python -m app.train_models\n"
-                "3) Vuelve a abrir la app\n"
+                "1) Reentrena los modelos con: python -m app.train_models\n"
+                "2) Asegúrate de que train_models use datos actuales\n"
+                "3) Vuelve a abrir la app"
             )
             return
 
@@ -305,11 +349,10 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
                 pairs = list(zip(classes, probs))
                 pairs.sort(key=lambda x: x[1], reverse=True)
 
-                # Porcentajes redondeados, ajustando visualmente si suma 101 por redondeo
                 perc = [int(round(p * 100)) for _, p in pairs]
                 diff = sum(perc) - 100
                 if diff != 0 and len(perc) > 0:
-                    perc[0] -= diff  # corregimos el primero para que visualmente sume 100
+                    perc[0] -= diff
 
                 prob_text = " · ".join([f"{c} {p}%" for (c, _), p in zip(pairs, perc)])
             except Exception:
@@ -330,14 +373,12 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
         if pipe is None:
             return
 
-        # Acceder al árbol interno del pipeline
         try:
             tree_model = pipe.named_steps["model"]
         except Exception:
             messagebox.showerror("Error", "No se pudo acceder al modelo interno.")
             return
 
-        # Feature names tras OneHot (si se puede)
         try:
             prep = pipe.named_steps["prep"]
             feature_names = prep.get_feature_names_out()
@@ -397,7 +438,11 @@ def abrir_ventana_prediccion(ventana_principal: ctk.CTk):
         buf.seek(0)
 
         pil_img = Image.open(buf).convert("RGBA")
-        ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(pil_img.width, pil_img.height))
+        ctk_img = ctk.CTkImage(
+            light_image=pil_img,
+            dark_image=pil_img,
+            size=(pil_img.width, pil_img.height)
+        )
 
         tree_label = ctk.CTkLabel(scroll, text="", image=ctk_img)
         tree_label.grid(row=0, column=0, sticky="n", padx=12, pady=12)
