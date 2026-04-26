@@ -16,8 +16,6 @@ Funciones principales:
     - get_camaras()
     - get_capturas_dataframe()
     - get_training_dataframe()
-
-Autor: Proyecto TrafiVision
 """
 
 import pymysql
@@ -32,7 +30,7 @@ DB_CONFIG = {
     "host": "localhost",
     "port": 3306,
     "user": "root",
-    "password": "trafivision",
+    "password": "",
     "database": "trafivision",
     "cursorclass": pymysql.cursors.Cursor
 }

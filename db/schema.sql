@@ -164,3 +164,18 @@ CREATE TABLE IF NOT EXISTS trafico (
     UNIQUE(captura_id)
 
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS usuario (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    rol ENUM('admin', 'user') NOT NULL DEFAULT 'user',
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT IGNORE INTO usuario (nombre, email, password, rol)
+VALUES
+('Administrador Demo', 'admin@trafivision.com', 'admin123', 'admin'),
+('Usuario Demo', 'usuario@demo.com', 'demo123', 'user');
