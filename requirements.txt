@@ -1,0 +1,11 @@
+﻿fastapi
+uvicorn[standard]
+pymysql
+python-multipart
+pandas
+scikit-learn
+joblib
+requests
+opencv-python
+ultralytics
+pillow

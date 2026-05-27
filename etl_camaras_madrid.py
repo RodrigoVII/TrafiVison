@@ -12,6 +12,7 @@ Cada ejecución captura las 10 cámaras y añade la información al CSV.
 """
 
 import os
+from pathlib import Path
 import time
 import requests
 import datetime as dt
@@ -20,15 +21,15 @@ import pandas as pd
 # =================== CONFIGURACIÓN ===================
 
 # Carpeta base del proyecto
-BASE_DIR = r"C:\Users\ditas\OneDrive\Escritorio\UE\2025-26 UE\Primer Cuatri\Proyecto De Computacion I\TrafiVison"
+BASE_DIR = Path(__file__).resolve().parent
 
-# Subcarpetas para CSV e imágenes
-CSV_DIR = os.path.join(BASE_DIR, "csv")
-IMG_DIR = os.path.join(BASE_DIR, "imagenesTrafico")
-os.makedirs(CSV_DIR, exist_ok=True)
+IMG_DIR = BASE_DIR / "imagenesTrafico"
+CSV_DIR = BASE_DIR / "csv"
+
 os.makedirs(IMG_DIR, exist_ok=True)
+os.makedirs(CSV_DIR, exist_ok=True)
 
-CSV_PATH = os.path.join(CSV_DIR, "camaras_solo.csv")
+CSV_PATH = CSV_DIR / "camaras_solo.csv"
 
 # Lista de cámaras de Madrid (nombre -> URL)
 CAMARAS = {

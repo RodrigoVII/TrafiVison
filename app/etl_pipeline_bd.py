@@ -4,11 +4,11 @@ import importlib.util
 import pandas as pd
 import pymysql
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[1]
 CSV_FINAL = BASE_DIR / "csv" / "dataset_final.csv"
 
 DB_CONFIG = {
-    "host": "127.0.0.1",
+    "host": "host.docker.internal",
     "port": 3306,
     "user": "root",
     "password": "",

@@ -17,16 +17,21 @@ Requiere:
 """
 
 import os
+from pathlib import Path
 import pandas as pd
 from ultralytics import YOLO
 
 # =================== CONFIGURACIÓN ===================
 
 # Carpeta base del proyecto
-BASE_DIR = r"C:\Users\ditas\OneDrive\Escritorio\UE\2025-26 UE\Primer Cuatri\Proyecto De Computacion I\TrafiVison"
+BASE_DIR = Path(__file__).resolve().parent
 
-# Subcarpetas de imágenes y CSV
-IMG_DIR = os.path.join(BASE_DIR, "imagenesTrafico")
+IMG_DIR = BASE_DIR / "imagenesTrafico"
+CSV_DIR = BASE_DIR / "csv"
+
+os.makedirs(CSV_DIR, exist_ok=True)
+
+CSV_PATH = CSV_DIR / "yolo_final.csv"
 CSV_DIR = os.path.join(BASE_DIR, "csv")
 os.makedirs(CSV_DIR, exist_ok=True)
 CSV_PATH = os.path.join(CSV_DIR, "yolo_final.csv")

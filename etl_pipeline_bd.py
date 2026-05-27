@@ -26,7 +26,7 @@ DATASET_FINAL = CSV_DIR / "dataset_final.csv"
 
 
 DB_CONFIG = {
-    "host": "127.0.0.1",
+    "host": "host.docker.internal",
     "port": 3306,
     "user": "root",
     "password": "",

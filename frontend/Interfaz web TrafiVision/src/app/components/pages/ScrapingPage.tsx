@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Globe, Database, Play, CheckCircle2, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Globe, Database, Play, Square, CheckCircle2, XCircle, Clock, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -13,21 +13,70 @@ export function ScrapingPage() {
   const [actionType, setActionType] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [scrapingActivo, setScrapingActivo] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
   const [error, setError] = useState('');
 
-  // Guardo logs en memoria para enseñar al usuario qué acciones ha ejecutado.
   const [logs, setLogs] = useState([
     {
       time: 'Sistema',
       type: 'info',
-      message: 'Panel de datos preparado para ejecutar procesos administrativos',
+      message: 'Panel preparado para iniciar scraping, clima y ETL',
     },
   ]);
+
+  // Compruebo al cargar la página si el scraping continuo está activo o parado.
+  useEffect(() => {
+    comprobarEstadoScraping();
+  }, []);
+
+  const addLog = (type: string, message: string) => {
+    setLogs((prev) => [
+      {
+        time: new Date().toLocaleTimeString(),
+        type,
+        message,
+      },
+      ...prev,
+    ]);
+  };
+
+  const comprobarEstadoScraping = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/admin/scraping/status`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setScrapingActivo(data.activo);
+      }
+    } catch {
+      // Si falla la consulta de estado, no bloqueo la pantalla.
+    }
+  };
 
   const handleExecute = (type: string) => {
     setActionType(type);
     setShowModal(true);
+  };
+
+  const getEndpoint = () => {
+    if (actionType === 'Iniciar Scraping Continuo') {
+      return '/api/admin/scraping/start';
+    }
+
+    if (actionType === 'Parar Scraping Continuo') {
+      return '/api/admin/scraping/stop';
+    }
+
+    if (actionType === 'Actualización de Clima') {
+      return '/api/admin/clima';
+    }
+
+    if (actionType === 'Procesamiento ETL') {
+      return '/api/admin/etl';
+    }
+
+    return '/api/admin/scraping';
   };
 
   const confirmExecute = async () => {
@@ -36,9 +85,7 @@ export function ScrapingPage() {
     setLastResult(null);
 
     try {
-      // Para Fase 2 usamos el mismo endpoint de scraping como proceso de actualización.
-      // Más adelante se podrían separar scraping, clima y ETL en endpoints diferentes.
-      const response = await fetch(`${API_URL}/api/admin/scraping`, {
+      const response = await fetch(`${API_URL}${getEndpoint()}`, {
         method: 'POST',
       });
 
@@ -50,29 +97,25 @@ export function ScrapingPage() {
 
       setLastResult(data);
 
-      setLogs((prev) => [
-        {
-          time: new Date().toLocaleTimeString(),
-          type: 'success',
-          message: `${actionType} completado: ${data.registros_obtenidos} registros obtenidos`,
-        },
-        ...prev,
-      ]);
+      if (actionType === 'Iniciar Scraping Continuo') {
+        setScrapingActivo(true);
+        addLog('success', 'Scraping continuo iniciado. Capturará imágenes cada 15 minutos.');
+      } else if (actionType === 'Parar Scraping Continuo') {
+        setScrapingActivo(false);
+        addLog('success', 'Scraping continuo detenido por el administrador.');
+      } else {
+        addLog(
+          'success',
+          `${actionType} completado: ${data.registros_obtenidos ?? 0} registros obtenidos`
+        );
+      }
 
       setShowModal(false);
+      comprobarEstadoScraping();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error inesperado';
-
       setError(message);
-
-      setLogs((prev) => [
-        {
-          time: new Date().toLocaleTimeString(),
-          type: 'error',
-          message: `${actionType} falló: ${message}`,
-        },
-        ...prev,
-      ]);
+      addLog('error', `${actionType} falló: ${message}`);
     } finally {
       setLoading(false);
     }
@@ -85,7 +128,7 @@ export function ScrapingPage() {
       type: lastResult ? actionType : 'Sin ejecución reciente',
       status: lastResult ? 'success' : 'pending',
       records: lastResult?.registros_obtenidos ?? 0,
-      duration: 'Proceso inmediato',
+      duration: scrapingActivo ? 'Continuo cada 15 min' : 'Proceso inmediato',
       errors: 0,
     },
   ];
@@ -94,7 +137,10 @@ export function ScrapingPage() {
     <div className="space-y-6">
       {lastResult && (
         <Alert variant="success" onClose={() => setLastResult(null)}>
-          {lastResult.mensaje}. Registros obtenidos: {lastResult.registros_obtenidos}
+          {lastResult.mensaje}
+          {lastResult.registros_obtenidos !== undefined && (
+            <>. Registros obtenidos: {lastResult.registros_obtenidos}</>
+          )}
         </Alert>
       )}
 
@@ -114,23 +160,38 @@ export function ScrapingPage() {
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Globe className="h-6 w-6 text-primary" />
               </div>
-              <Badge variant="success">Activo</Badge>
+
+              <Badge variant={scrapingActivo ? 'success' : 'secondary'}>
+                {scrapingActivo ? 'Activo' : 'Parado'}
+              </Badge>
             </div>
 
             <h3 className="text-sm mb-2">Web Scraping</h3>
             <p className="text-xs text-muted-foreground mb-4">
-              Actualiza capturas y datos recogidos desde las fuentes del proyecto.
+              Captura imágenes de cámaras cada 15 minutos hasta que se pulse parar.
             </p>
 
-            <Button
-              variant="primary"
-              size="sm"
-              className="w-full"
-              onClick={() => handleExecute('Web Scraping de Cámaras')}
-            >
-              <Play className="h-4 w-4" />
-              Ejecutar Scraping
-            </Button>
+            {scrapingActivo ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="w-full"
+                onClick={() => handleExecute('Parar Scraping Continuo')}
+              >
+                <Square className="h-4 w-4" />
+                Parar Scraping
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                className="w-full"
+                onClick={() => handleExecute('Iniciar Scraping Continuo')}
+              >
+                <Play className="h-4 w-4" />
+                Iniciar Scraping
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -140,12 +201,12 @@ export function ScrapingPage() {
               <div className="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center">
                 <Database className="h-6 w-6 text-success" />
               </div>
-              <Badge variant="success">Activo</Badge>
+              <Badge variant="success">Manual</Badge>
             </div>
 
             <h3 className="text-sm mb-2">Datos Clima</h3>
             <p className="text-xs text-muted-foreground mb-4">
-              Prepara la actualización de datos meteorológicos asociados.
+              Ejecuta una actualización real de clima con el script etl_tiempo.py.
             </p>
 
             <Button
@@ -171,7 +232,7 @@ export function ScrapingPage() {
 
             <h3 className="text-sm mb-2">Proceso ETL</h3>
             <p className="text-xs text-muted-foreground mb-4">
-              Ejecuta procesamiento y preparación de datos para el modelo.
+              Proceso reservado para juntar cámaras, clima y cargar datos en MariaDB.
             </p>
 
             <Button
@@ -196,31 +257,35 @@ export function ScrapingPage() {
           <div className="space-y-3">
             <div className="p-4 bg-muted rounded-lg">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm">Web Scraping</span>
-                <Badge variant="success">Preparado</Badge>
+                <span className="text-sm">Web Scraping Continuo</span>
+                <Badge variant={scrapingActivo ? 'success' : 'secondary'}>
+                  {scrapingActivo ? 'Activo' : 'Parado'}
+                </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Proceso disponible para administrador. En Fase 2 queda conectado al backend.
+                {scrapingActivo
+                  ? 'Capturando imágenes automáticamente cada 15 minutos.'
+                  : 'Scraping detenido. Pulsa iniciar para comenzar las capturas automáticas.'}
               </p>
             </div>
 
             <div className="p-4 bg-muted rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm">Actualización de Clima</span>
-                <Badge variant="success">Preparado</Badge>
+                <Badge variant="success">Disponible</Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Se mantiene como acción administrativa para actualizar datos meteorológicos.
+                Acción manual para guardar una nueva medición meteorológica.
               </p>
             </div>
 
             <div className="p-4 bg-muted rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm">Proceso ETL</span>
-                <Badge variant="warning">Manual</Badge>
+                <Badge variant="warning">Pendiente</Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Limpieza y preparación de datos antes de entrenar modelos predictivos.
+                Falta conectar el merge final y carga a base de datos.
               </p>
             </div>
           </div>
@@ -296,8 +361,16 @@ export function ScrapingPage() {
         onClose={() => setShowModal(false)}
         title="Confirmar Ejecución"
         onConfirm={confirmExecute}
-        confirmText="Ejecutar"
-        confirmVariant="primary"
+        confirmText={
+          actionType === 'Parar Scraping Continuo'
+            ? 'Parar'
+            : 'Ejecutar'
+        }
+        confirmVariant={
+          actionType === 'Parar Scraping Continuo'
+            ? 'destructive'
+            : 'primary'
+        }
         loading={loading}
       >
         <p className="text-sm text-muted-foreground">

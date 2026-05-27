@@ -27,7 +27,7 @@ import pandas as pd
 # ======================================================
 
 DB_CONFIG = {
-    "host": "localhost",
+    "host": "host.docker.internal",
     "port": 3306,
     "user": "root",
     "password": "",

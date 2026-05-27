@@ -46,7 +46,7 @@ MODELS_DIR = BASE_DIR / "models"
 # Configuración de conexión a MariaDB.
 # En XAMPP normalmente root no tiene contraseña.
 DB_CONFIG = {
-    "host": "127.0.0.1",
+    "host": "host.docker.internal",
     "port": 3306,
     "user": "root",
     "password": "",
@@ -552,7 +552,7 @@ def dashboard():
         raise HTTPException(status_code=500, detail=f"Error dashboard: {e}")
 
 
-# ============================================================
+    ## ============================================================
 # CÁMARAS
 # ============================================================
 
@@ -567,7 +567,8 @@ def get_camaras():
                 c.distrito,
                 c.latitud,
                 c.longitud,
-                MAX(cp.timestamp) AS ultima_captura
+                MAX(cp.timestamp) AS ultima_captura,
+                MAX(cp.ruta_imagen) AS ruta_imagen
             FROM camara c
             LEFT JOIN captura cp ON cp.camara_id = c.id
             GROUP BY c.id, c.codigo, c.distrito, c.latitud, c.longitud
@@ -584,14 +585,13 @@ def get_camaras():
                 "longitud": float(row[4]) if row[4] is not None else None,
                 "estado": "activa" if row[5] else "sin_datos",
                 "ultima_captura": str(row[5]) if row[5] else "Sin capturas",
+                "imagen": row[6] if row[6] else None,
             }
             for row in rows
         ]
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error cámaras: {e}")
-
-
 # ============================================================
 # HISTÓRICO
 # ============================================================
@@ -637,7 +637,7 @@ def get_historico(limit: int = 100):
         raise HTTPException(status_code=500, detail=f"Error histórico: {e}")
 
 
-# ============================================================
+## ============================================================
 # PREDICCIÓN
 # ============================================================
 
@@ -676,12 +676,43 @@ def predict(data: PredictRequest):
             clases = model.classes_
 
             probabilidades = {
-                str(clase): round(float(prob) * 100, 2)
+                str(clase).strip().lower(): round(float(prob) * 100, 2)
                 for clase, prob in zip(clases, probs)
             }
 
+            # Aseguramos que siempre existan las 3 clases del proyecto
+            probabilidades.setdefault("bajo", 0)
+            probabilidades.setdefault("medio", 0)
+            probabilidades.setdefault("elevado", 0)
+
+            # Ajuste para escenarios urbanos donde puede haber más tráfico
+            franja = str(data.franja_horaria).strip().lower()
+            laborable = str(data.laborable).strip().lower()
+            calle = str(data.calle).strip().lower()
+
+            es_hora_punta = franja in ["mañana", "manana", "tarde", "noche"]
+            es_laborable = laborable in ["sí", "si", "true", "1"]
+            zona_centrica = any(
+                zona in calle
+                for zona in ["alcala", "alcalá", "velazquez", "velázquez", "gran via", "gran vía", "castellana"]
+            )
+
+            if es_hora_punta and (es_laborable or zona_centrica):
+                elevado_actual = probabilidades.get("elevado", 0)
+
+                if elevado_actual < 12:
+                    incremento = 12 - elevado_actual
+                    probabilidades["elevado"] = 12
+
+                    if probabilidades.get("medio", 0) >= incremento:
+                        probabilidades["medio"] = round(probabilidades["medio"] - incremento, 2)
+                    else:
+                        restante = incremento - probabilidades.get("medio", 0)
+                        probabilidades["medio"] = 0
+                        probabilidades["bajo"] = max(0, round(probabilidades["bajo"] - restante, 2))
+
         return {
-            "nivel_trafico": str(prediccion),
+            "nivel_trafico": str(prediccion).strip().lower(),
             "modelo": data.modelo,
             "probabilidades": probabilidades,
             "entrada_usada": entrada.to_dict(orient="records")[0],
@@ -693,7 +724,6 @@ def predict(data: PredictRequest):
             status_code=500,
             detail=f"Error al ejecutar la predicción: {e}",
         )
-
 
 # ============================================================
 # ADMIN - ENTRENAMIENTO, SCRAPING, CLIMA Y ETL
@@ -883,14 +913,12 @@ def procesar_etl():
 
         modulo = cargar_modulo_desde_archivo("etl_pipeline_bd", script_path)
         resultado = modulo.ejecutar_pipeline()
+        print(resultado)
 
         return {
-            "mensaje": resultado["mensaje"],
-            "registros_obtenidos": resultado["insertados"],
-            "registros_saltados": resultado["saltados"],
-            "total_csv": resultado["total_csv"],
-            "estado": "completado",
-        }
+    "mensaje": "ETL ejecutado correctamente",
+    "estado": "completado"
+}
 
     except Exception as e:
         raise HTTPException(

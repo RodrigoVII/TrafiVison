@@ -16,6 +16,7 @@ interface CameraData {
   longitud: number | null;
   estado: string;
   ultima_captura: string;
+  imagen?: string | null;
 }
 
 export function CamerasPage() {
@@ -96,14 +97,18 @@ export function CamerasPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <div className="aspect-video bg-muted rounded-lg flex flex-col items-center justify-center mb-4">
-                    <ImageOff className="h-12 w-12 text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">Imagen no disponible todavía</p>
-                  </div>
-
-                  <p className="text-xs text-muted-foreground">
-                    Las capturas se mostrarán aquí cuando el scraping guarde imágenes asociadas a esta cámara.
-                  </p>
+                  {selectedCamera.imagen ? (
+  <img
+    src={`${API_URL}/${selectedCamera.imagen}`}
+    alt={selectedCamera.nombre}
+    className="aspect-video w-full object-cover rounded-lg mb-4 border"
+  />
+) : (
+  <div className="aspect-video bg-muted rounded-lg flex flex-col items-center justify-center mb-4">
+    <ImageOff className="h-12 w-12 text-muted-foreground mb-2" />
+    <p className="text-sm text-muted-foreground">Imagen no disponible todavía</p>
+  </div>
+)}
                 </div>
 
                 <div className="space-y-4">

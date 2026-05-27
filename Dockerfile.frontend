@@ -1,0 +1,13 @@
+﻿FROM node:20
+
+WORKDIR /app
+
+COPY frontend/Interfaz web TrafiVision/package*.json ./
+
+RUN npm install
+
+COPY frontend/Interfaz web TrafiVision .
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host"]

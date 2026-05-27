@@ -12,6 +12,7 @@ Autor: Maylen & Rodrigo
 """
 
 import os
+from pathlib import Path
 import time
 import requests
 import datetime as dt
@@ -22,12 +23,12 @@ import pandas as pd
 LAT, LON = 40.4168, -3.7038
 
 # Carpeta base del proyecto
-BASE_DIR = r"C:\Users\ditas\OneDrive\Escritorio\UE\2025-26 UE\Primer Cuatri\Proyecto De Computacion I\TrafiVison"
+BASE_DIR = Path(__file__).resolve().parent
+CSV_DIR = BASE_DIR / "csv"
 
-# Subcarpeta para guardar el CSV
-CSV_DIR = os.path.join(BASE_DIR, "csv")
+CSV_DIR.mkdir(exist_ok=True)
 os.makedirs(CSV_DIR, exist_ok=True)
-CSV_PATH = os.path.join(CSV_DIR, "tiempo_madrid.csv")
+CSV_PATH = CSV_DIR / "tiempo_madrid.csv"
 
 # Endpoint de Open-Meteo (API pública)
 URL = (

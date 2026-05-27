@@ -21,17 +21,19 @@ Salida:
 """
 
 import os
+from pathlib import Path
 import re
 import pandas as pd
 from datetime import datetime, timedelta
 
 # ----- RUTAS -----
-BASE = r"C:\Users\ditas\OneDrive\Escritorio\UE\2025-26 UE\Primer Cuatri\Proyecto De Computacion I\TrafiVison\csv"
-CAM_PATH  = os.path.join(BASE, "camaras_solo.csv")
-YOLO_PATH = os.path.join(BASE, "yolo_final.csv")
-MET_PATH  = os.path.join(BASE, "tiempo_madrid.csv")
-OUT_PATH  = os.path.join(BASE, "dataset_final.csv")
+BASE_DIR = Path(__file__).resolve().parent
+BASE = BASE_DIR / "csv"
 
+CAM_PATH = BASE / "camaras_solo.csv"
+YOLO_PATH = BASE / "yolo_final.csv"
+MET_PATH = BASE / "tiempo_madrid.csv"
+OUT_PATH = BASE / "dataset_final.csv"
 # ----- AUXILIARES -----
 def basename(p):
     return os.path.basename(str(p)).strip()

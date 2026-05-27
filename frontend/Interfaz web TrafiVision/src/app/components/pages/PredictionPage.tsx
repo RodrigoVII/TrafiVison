@@ -250,12 +250,22 @@ export function PredictionPage() {
               </div>
 
               {prediction.probabilidades && (
-                <div>
-                  <span className="text-sm text-muted-foreground">Probabilidades:</span>
-                  <pre className="text-xs bg-muted p-3 rounded-lg mt-2 overflow-x-auto">
-                    {JSON.stringify(prediction.probabilidades, null, 2)}
-                  </pre>
-                </div>
+              <div>
+    <span className="text-sm text-muted-foreground">Probabilidades:</span>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+      {['bajo', 'medio', 'elevado'].map((nivel) => (
+        <div key={nivel} className="bg-muted p-3 rounded-lg">
+          <p className="text-sm capitalize">{nivel}</p>
+          <p className="text-lg">
+            {prediction.probabilidades[nivel] !== undefined
+              ? `${prediction.probabilidades[nivel]}%`
+              : '0%'}
+          </p>
+        </div>
+      ))}
+    </div>
+  </div>
               )}
             </div>
           </CardContent>
